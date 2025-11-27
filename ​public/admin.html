@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Notification Sender</title>
+</head>
+<body>
+    <h1>ADMIN PANEL - Send Notification</h1>
+    
+    <form id="notificationForm">
+        <label for="messageBody">Notification Message:</label><br>
+        <textarea id="messageBody" rows="4" cols="50" placeholder="Enter the message you want to send to logged-in users..."></textarea><br><br>
+        <button type="submit">Send Notification to All Logged-in Devices</button>
+    </form>
+    
+    <p id="sendStatus" style="margin-top: 20px; font-weight: bold;">Ready to send...</p>
+    
+    <script>
+        // --- Notification Sender Script ---
+        
+        document.getElementById('notificationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const messageBody = document.getElementById('messageBody').value;
+            const statusEl = document.getElementById('sendStatus');
+            
+            if (!messageBody) {
+                statusEl.textContent = 'Please enter a message.';
+                return;
+            }
+
+            statusEl.textContent = 'Sending notification... Please wait.';
+
+            // Vercel Serverless Function (Backend API)-ஐ அழைத்தல்
+            fetch('/api/sendNotification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messageBody: messageBody })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusEl.style.color = 'green';
+                    statusEl.textContent = '✅ SUCCESS! ' + data.message;
+                    document.getElementById('messageBody').value = ''; // Clear input
+                } else {
+                    statusEl.style.color = 'red';
+                    statusEl.textContent = '❌ FAILED: ' + data.message;
+                }
+            })
+            .catch(error => {
+                console.error('Error sending notification:', error);
+                statusEl.style.color = 'red';
+                statusEl.textContent = '🚨 NETWORK ERROR: Could not connect to server.';
+            });
+        });
+    </script>
+</body>
+</html>
