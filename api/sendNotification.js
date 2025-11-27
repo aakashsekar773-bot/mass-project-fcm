@@ -11,7 +11,7 @@ if (!admin.apps.length) {
                 type: process.env.FIREBASE_TYPE,
                 project_id: process.env.FIREBASE_PROJECT_ID,
                 private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-                // மிக முக்கியமான திருத்தம்: Private Key-ல் உள்ள \n-களைச் சரியாக மாற்றுதல்
+                // மிக முக்கியமான திருத்தம்: Private Key-ல் உள்ள \n-களைச் சரியாக மாற்றுதல் (இது 'FAILED' பிழையைத் தவிர்க்கும்)
                 private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'), 
                 client_email: process.env.FIREBASE_CLIENT_EMAIL,
                 auth_uri: process.env.FIREBASE_AUTH_URI,
@@ -41,16 +41,20 @@ module.exports = async (req, res) => {
     
     // 3. அனைத்து Tokens-ஐயும் Firestore-லிருந்து பெறுதல்
     let tokens = [];
+    
+    // உங்கள் Firestore அமைப்பு: Collection பெயரே '9361033781'
+    const COLLECTION_NAME = '9361033781'; 
+
     try {
-        // முக்கியமான திருத்தம்: உங்கள் Firestore-ல் உள்ள Collection பெயர் '9361033781' என்று இருந்தால், 
-        // அதற்கு பதிலாக தற்காலிகமாக அதை Collection ஆகப் பயன்படுத்துகிறோம். 
-        // குறிப்பு: பொதுவாக Collection பெயர் நிலையானதாக (static) இருக்க வேண்டும்.
-        const snapshot = await db.collection('9361033781').get(); 
+        // Collection-ஐப் படித்து, அனைத்து Document-களிலிருந்தும் Token-களைப் பிரித்தெடுக்கவும்.
+        const snapshot = await db.collection(COLLECTION_NAME).get(); 
         
         snapshot.forEach(doc => {
             const data = doc.data();
             if (data && data.token) {
                 tokens.push(data.token);
+                // Console-ல் Token கிடைத்ததா என்று சரிபார்க்க
+                console.log(`Found token in Collection ${COLLECTION_NAME}:`, data.token); 
             }
         });
 
@@ -75,6 +79,7 @@ module.exports = async (req, res) => {
 
     // 6. Notification அனுப்புதல்
     try {
+        // sendAll-ஐப் பயன்படுத்தி Notification அனுப்புதல்
         const response = await admin.messaging().sendAll(tokens.map(token => ({ token, ...payload })));
         
         console.log('Successfully sent message:', response);
@@ -85,4 +90,4 @@ module.exports = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Failed to send notifications.', details: error.message });
     }
 };
-    
+                                     
