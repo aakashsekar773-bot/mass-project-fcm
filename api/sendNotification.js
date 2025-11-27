@@ -11,7 +11,7 @@ if (!admin.apps.length) {
                 type: process.env.FIREBASE_TYPE,
                 project_id: process.env.FIREBASE_PROJECT_ID,
                 private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-                // முக்கியத் திருத்தம்: Private Key-ல் உள்ள \n-களைச் சரியாக மாற்றுதல்
+                // மிக முக்கியமான திருத்தம்: Private Key-ல் உள்ள \n-களைச் சரியாக மாற்றுதல்
                 private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'), 
                 client_email: process.env.FIREBASE_CLIENT_EMAIL,
                 auth_uri: process.env.FIREBASE_AUTH_URI,
@@ -42,11 +42,12 @@ module.exports = async (req, res) => {
     // 3. அனைத்து Tokens-ஐயும் Firestore-லிருந்து பெறுதல்
     let tokens = [];
     try {
-        // 'tokens' Collection-லிருந்து பெறுதல்
-        const snapshot = await db.collection('tokens').get(); 
+        // முக்கியமான திருத்தம்: உங்கள் Firestore-ல் உள்ள Collection பெயர் '9361033781' என்று இருந்தால், 
+        // அதற்கு பதிலாக தற்காலிகமாக அதை Collection ஆகப் பயன்படுத்துகிறோம். 
+        // குறிப்பு: பொதுவாக Collection பெயர் நிலையானதாக (static) இருக்க வேண்டும்.
+        const snapshot = await db.collection('9361033781').get(); 
         
         snapshot.forEach(doc => {
-            // Document-ல் token ஃபீல்ட் உள்ளதா என்று உறுதிப்படுத்தல்
             const data = doc.data();
             if (data && data.token) {
                 tokens.push(data.token);
@@ -68,13 +69,12 @@ module.exports = async (req, res) => {
         notification: {
             title: 'புதிய அறிவிப்பு',
             body: message || 'புதிய செய்தியைப் பார்க்கவும்.',
-            icon: 'YOUR_ICON_URL' // நீங்கள் விரும்பினால் ஐகான் URL-ஐ சேர்க்கலாம்
+            icon: 'YOUR_ICON_URL' 
         }
     };
 
     // 6. Notification அனுப்புதல்
     try {
-        // sendToAll என்பது V8 SDK-ல் இல்லை. அதற்குப் பதிலாக sendAll பயன்படுத்தவும்.
         const response = await admin.messaging().sendAll(tokens.map(token => ({ token, ...payload })));
         
         console.log('Successfully sent message:', response);
