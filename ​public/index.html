@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Notification Setup</title>
+</head>
+<body>
+    <h1>📱 Phone Number Login</h1>
+    <p>Please enter your phone number to enable notifications.</p>
+
+    <form id="loginForm">
+        <label for="phoneNumber">Phone Number:</label>
+        <input type="tel" id="phoneNumber" placeholder="9876543210" required>
+        <button type="submit">Submit & Enable Notifications</button>
+        <p id="statusMessage" style="color: blue;">Awaiting action...</p>
+    </form>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
+    
+    <script>
+        // ✅ உங்கள் Firebase Config Details
+        const firebaseConfig = {
+            apiKey: "AIzaSyDdI8IAXnTuml1RG7CPmTjEuuTjktn-KSA", 
+            authDomain: "project-mass-fbd52.firebaseapp.com",
+            projectId: "project-mass-fbd52",
+            storageBucket: "project-mass-fbd52.firebasestorage.app",
+            messagingSenderId: "768930454542", 
+            appId: "1:768930454542:web:3fe15d047a48bab349f05f"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const messaging = firebase.messaging();
+
+        // ✅ VAPID Public Key
+        const VAPID_KEY = 'BPXV1Y6fG_EH_RRwa6AslnyrnqMYiGU0OWMmHedhxZC46sykRmzkGOeiobqQk9f3ivQlNkpIWeDS25WcYXLq5gM'; 
+        
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = 'Requesting Permission...';
+            statusEl.style.color = 'blue';
+
+            // 1. Notification Permission கேட்டல்
+            messaging.requestPermission().then(() => {
+                statusEl.textContent = 'Permission granted. Getting Token...';
+                
+                // 2. FCM Token பெறுதல்
+                return messaging.getToken({ vapidKey: VAPID_KEY });
+            }).then((token) => {
+                if (token) {
+                    statusEl.textContent = 'Token received. Sending to server...';
+                    
+                    // 3. Token & Phone Number-ஐ Vercel Backend-க்கு அனுப்புதல்
+                    return fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phoneNumber: phoneNumber, token: token })
+                    });
+                } else {
+                    statusEl.style.color = 'red';
+                    statusEl.textContent = '❌ Failed to get Token. Notifications blocked?';
+                    return Promise.reject('No token available.');
+                }
+            }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusEl.style.color = 'green';
+                    statusEl.textContent = '✅ Success! Phone number registered.';
+                } else {
+                    statusEl.style.color = 'red';
+                    statusEl.textContent = '❌ Server Error: ' + data.message;
+                }
+            }).catch(error => {
+                console.error('Login Process Error:', error);
+                statusEl.style.color = 'red';
+                statusEl.textContent = '🚨 Critical Error: Check console for error.';
+            });
+        });
+    </script>
+</body>
+</html>
+  
