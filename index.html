@@ -3,84 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login & Notification Setup</title>
+    <title>Phone Number Login & Notification Setup</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .status-message { margin-top: 15px; padding: 10px; border-radius: 5px; font-weight: bold; }
+        .red { color: white; background-color: #f44336; }
+        .blue { color: white; background-color: #2196F3; }
+        .green { color: white; background-color: #4CAF50; }
+        .error { color: red; }
+    </style>
 </head>
 <body>
+
     <h1>📱 Phone Number Login</h1>
     <p>Please enter your phone number to enable notifications.</p>
 
     <form id="loginForm">
-        <label for="phoneNumber">Phone Number:</label>
-        <input type="tel" id="phoneNumber" placeholder="9876543210" required>
-        <button type="submit">Submit & Enable Notifications</button>
-        <p id="statusMessage" style="color: blue;">Awaiting action...</p>
+        <label for="phone">Phone Number: </label>
+        <input type="text" id="phone" name="phone" value="9361033781" required>
+        <button type="submit" id="loginBtn">Submit & Enable Notifications</button>
     </form>
-    
+
+    <div id="statusMessage" class="status-message blue">Awaiting action...</div>
+    <div id="errorDisplay" class="error"></div>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
-    
+
     <script>
-        // ✅ உங்கள் Firebase Config Details
+        // CLIENT SIDE CONFIGURATION - (உங்கள் சரியான மதிப்புகளைக் கொண்டு நிரப்பப்பட்டுள்ளது)
         const firebaseConfig = {
-            apiKey: "AIzaSyDdI8IAXnTuml1RG7CPmTjEuuTjktn-KSA", 
+            apiKey: "AIzaSyDdI8IAXnTuml1RG7CPmTjEuuTjktn-KSA",
             authDomain: "project-mass-fbd52.firebaseapp.com",
             projectId: "project-mass-fbd52",
             storageBucket: "project-mass-fbd52.firebasestorage.app",
-            messagingSenderId: "768930454542", 
+            messagingSenderId: "768930454542",
             appId: "1:768930454542:web:3fe15d047a48bab349f05f"
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const messaging = firebase.messaging();
+        try {
+            firebase.initializeApp(firebaseConfig);
+            var messaging = firebase.messaging();
+            document.getElementById('statusMessage').textContent = 'Firebase initialized.';
+        } catch (e) {
+            console.error('Firebase Initialization Error:', e);
+            document.getElementById('errorDisplay').textContent = 'Critical Error: Firebase Initialization Failed.';
+            document.getElementById('statusMessage').style.backgroundColor = 'red';
+            document.getElementById('statusMessage').textContent = 'Initialization Failed';
+            throw e; 
+        }
 
-        // ✅ VAPID Public Key
-        const VAPID_KEY = 'BPXV1Y6fG_EH_RRwa6AslnyrnqMYiGU0OWMmHedhxZC46sykRmzkGOeiobqQk9f3ivQlNkpIWeDS25WcYXLq5gM'; 
-        
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        const loginForm = document.getElementById('loginForm');
+        const statusEl = document.getElementById('statusMessage');
+        const errorEl = document.getElementById('errorDisplay');
+        // VAPID Public Key - இதை நீங்கள் கொடுத்திருந்தீர்கள், இது சரியாக இருக்க வேண்டும்.
+        const vapidKey = "BN_Bi5TO9ChOFdoT3WnJt6c79316Jg8h295Jtq-9Y4Xp8tM9F-d11iQ_c_YgU5W525WxY05GUp"; 
+
+        // Function to register Service Worker and get token
+        function requestPermissionAndGetToken(phone) {
+            statusEl.textContent = 'Requesting Notification Permission...';
+            statusEl.style.backgroundColor = 'blue';
+
+            // 1. Service Worker Registration
+            // Service Worker ஃபைல் (firebase-messaging-sw.js) ரூட்-ல் உள்ளதால், பாதை சரி.
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/firebase-messaging-sw.js') 
+                .then((registration) => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                    // 2. Request Notification Permission
+                    return Notification.requestPermission(); 
+                })
+                .then((permission) => {
+                    if (permission === 'granted') {
+                        statusEl.textContent = 'Permission granted. Getting Token...';
+                        // 3. Get FCM Token
+                        return messaging.getToken({ vapidKey: vapidKey });
+                    } else {
+                        throw new Error('Notification permission denied or blocked.');
+                    }
+                })
+                .then((token) => {
+                    if (token) {
+                        statusEl.textContent = 'Token received. Sending to server...';
+                        console.log('FCM Token:', token);
+
+                        // 4. Send Token to Server (Your Vercel API)
+                        return fetch('/api/login.js', { // <--- Vercel API Path
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ phone: phone, token: token })
+                        });
+                    } else {
+                        throw new Error('Failed to get FCM token. Notifications blocked?');
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        statusEl.textContent = 'Success! Phone number registered.';
+                        statusEl.style.backgroundColor = 'green';
+                        errorEl.textContent = '';
+                    } else {
+                        statusEl.textContent = 'Server Error: ' + data.message;
+                        statusEl.style.backgroundColor = 'red';
+                        errorEl.textContent = '';
+                    }
+                })
+                .catch((error) => {
+                    console.error('Login Process Error:', error);
+                    errorEl.textContent = 'Critical Error: ' + error.message;
+                    statusEl.textContent = 'Process Failed';
+                    statusEl.style.backgroundColor = 'red';
+                });
+            } else {
+                errorEl.textContent = 'Critical Error: Service Workers are not supported by this browser.';
+                statusEl.textContent = 'Browser Not Supported';
+                statusEl.style.backgroundColor = 'red';
+            }
+        }
+
+        loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const phoneNumber = document.getElementById('phoneNumber').value;
-            const statusEl = document.getElementById('statusMessage');
-            statusEl.textContent = 'Requesting Permission...';
-            statusEl.style.color = 'blue';
-
-            // 1. Notification Permission கேட்டல்
-            messaging.requestPermission().then(() => {
-                statusEl.textContent = 'Permission granted. Getting Token...';
-                
-                // 2. FCM Token பெறுதல்
-                return messaging.getToken({ vapidKey: VAPID_KEY });
-            }).then((token) => {
-                if (token) {
-                    statusEl.textContent = 'Token received. Sending to server...';
-                    
-                    // 3. Token & Phone Number-ஐ Vercel Backend-க்கு அனுப்புதல்
-                    return fetch('/api/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ phoneNumber: phoneNumber, token: token })
-                    });
-                } else {
-                    statusEl.style.color = 'red';
-                    statusEl.textContent = '❌ Failed to get Token. Notifications blocked?';
-                    return Promise.reject('No token available.');
-                }
-            }).then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    statusEl.style.color = 'green';
-                    statusEl.textContent = '✅ Success! Phone number registered.';
-                } else {
-                    statusEl.style.color = 'red';
-                    statusEl.textContent = '❌ Server Error: ' + data.message;
-                }
-            }).catch(error => {
-                console.error('Login Process Error:', error);
-                statusEl.style.color = 'red';
-                statusEl.textContent = '🚨 Critical Error: Check console for error.';
-            });
+            const phoneInput = document.getElementById('phone').value;
+            requestPermissionAndGetToken(phoneInput);
         });
+        
     </script>
 </body>
 </html>
-  
+    
