@@ -6,13 +6,22 @@ const admin = require('firebase-admin');
 // 1. Firebase Admin SDK-ஐத் தொடங்குதல் (Initialization)
 if (!admin.apps.length) {
     try {
+        // Private Key-ஐப் படிப்பதற்கான உறுதியான திருத்தம் (Split/Join Logic)
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY 
+            ? process.env.FIREBASE_PRIVATE_KEY.split(String.raw`\n`).join('\n') 
+            : undefined;
+
+        if (!privateKey) {
+             throw new Error("FIREBASE_PRIVATE_KEY environment variable is missing.");
+        }
+
         admin.initializeApp({
             credential: admin.credential.cert({
                 type: process.env.FIREBASE_TYPE,
                 project_id: process.env.FIREBASE_PROJECT_ID,
                 private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-                // மிக முக்கியமான திருத்தம்: Private Key-ல் உள்ள \n-களைச் சரியாக மாற்றுதல்
-                private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'), 
+                // திருத்தப்பட்ட Private Key-ஐப் பயன்படுத்துதல்
+                private_key: privateKey, 
                 client_email: process.env.FIREBASE_CLIENT_EMAIL,
                 auth_uri: process.env.FIREBASE_AUTH_URI,
                 token_uri: process.env.FIREBASE_TOKEN_URI,
@@ -24,6 +33,7 @@ if (!admin.apps.length) {
     } catch (error) {
         console.error("Firebase Admin Initialization Error:", error);
         return (req, res) => {
+            // Initialization தோல்வியடைந்தால் 500 பிழையை அனுப்புதல்
             res.status(500).json({ success: false, message: "Server Initialization Failed" });
         };
     }
@@ -42,7 +52,7 @@ module.exports = async (req, res) => {
     // 3. அனைத்து Tokens-ஐயும் Firestore-லிருந்து பெறுதல்
     let tokens = [];
     
-    // உங்கள் கோரிக்கையின்படி, Collection பெயரை மீண்டும் 'tokens' என்று மாற்றுகிறோம்.
+    // உங்கள் Firestore அமைப்புப்படி (சமீபத்திய ஸ்கிரீன்ஷாட்), Collection பெயர் 'tokens'
     const COLLECTION_NAME = 'tokens'; 
 
     try {
@@ -53,7 +63,6 @@ module.exports = async (req, res) => {
             const data = doc.data();
             if (data && data.token) {
                 tokens.push(data.token);
-                // Token வெற்றிகரமாகக் கிடைத்ததைக் காட்டுதல்
                 console.log(`Token found in Collection ${COLLECTION_NAME}`); 
             }
         });
@@ -91,4 +100,4 @@ module.exports = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Failed to send notifications.', details: error.message });
     }
 };
-                      
+                
