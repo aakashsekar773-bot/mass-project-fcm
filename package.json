@@ -1,0 +1,12 @@
+{
+  "name": "firebase-notification-service",
+  "version": "1.0.0",
+  "description": "FCM Notification service via Vercel Serverless Functions",
+  "main": "api/login.js",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}
