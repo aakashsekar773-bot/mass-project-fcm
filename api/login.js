@@ -4,15 +4,24 @@
 const admin = require('firebase-admin');
 
 // 1. Firebase Admin SDK-ஐத் தொடங்குதல் (Initialization)
-// Environment Variables-லிருந்து Service Account-ஐப் பயன்படுத்துதல்
 if (!admin.apps.length) {
     try {
+        // மிகவும் நம்பகமான Private Key வாசிப்பு முறை: '\\n' ஐ '\n' ஆக மாற்றுதல்
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY 
+            ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') 
+            : undefined;
+
+        if (!privateKey) {
+             console.error("FIREBASE_PRIVATE_KEY environment variable is missing.");
+             throw new Error("Initialization Failed: Missing Private Key.");
+        }
+
         admin.initializeApp({
             credential: admin.credential.cert({
                 type: process.env.FIREBASE_TYPE,
                 project_id: process.env.FIREBASE_PROJECT_ID,
                 private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-                private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Private Key-ல் உள்ள \n-களை சரியாக மாற்றுதல்
+                private_key: privateKey, 
                 client_email: process.env.FIREBASE_CLIENT_EMAIL,
                 client_id: process.env.FIREBASE_CLIENT_ID,
                 auth_uri: process.env.FIREBASE_AUTH_URI,
@@ -21,36 +30,35 @@ if (!admin.apps.length) {
                 client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
                 universe_domain: process.env.FIREBASE_UNIVERSE_DOMAIN
             }),
-            // Database URL தேவையில்லை
         });
     } catch (error) {
         console.error("Firebase Admin Initialization Error:", error);
-        return (req, res) => {
-            res.status(500).json({ success: false, message: "Server Initialization Failed" });
-        };
+        // இந்த பிழையைத் தவிர்த்து, கீழே உள்ள module.exports-இல் 500 பிழையை அனுப்புவோம்.
     }
 }
 
-const db = admin.firestore();
+const db = admin.apps.length ? admin.firestore() : null;
 
 module.exports = async (req, res) => {
-    // 2. HTTP Method-ஐச் சரிபார்த்தல்
+    // 2. Init தோல்வியடைந்தால், கோட்டை உடனடியாக நிறுத்துதல்
+    if (!db) {
+        return res.status(500).json({ success: false, message: "Server Initialization Failed (DB Not Ready)" });
+    }
+
+    // 3. HTTP Method-ஐச் சரிபார்த்தல்
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
     }
 
-    // 3. Request Body-ஐப் படித்தல்
+    // 4. Request Body-ஐப் படித்தல் மற்றும் சரிபார்த்தல்
     const { phone, token } = req.body;
 
-    // 4. உள்ளீட்டு மதிப்புகளைச் சரிபார்த்தல் (The Fix for the "Missing" Error)
     if (!phone || !token) {
-        // உங்கள் index.html-ல் இருந்து வரும் பிழைச் செய்தியைச் சரியாக அனுப்பும்
-        console.error("Missing data:", { phone, token });
         return res.status(400).json({ success: false, message: "Missing phone number or token in request body." });
     }
 
     try {
-        // 5. Token-ஐ Firestore-ல் சேமித்தல்
+        // 5. Token-ஐ Firestore-ல் சேமித்தல்: phone-ஐ Document ID ஆகப் பயன்படுத்துதல்
         const docRef = db.collection('tokens').doc(phone);
         await docRef.set({
             token: token,
@@ -62,7 +70,7 @@ module.exports = async (req, res) => {
 
     } catch (error) {
         console.error('Error saving token:', error);
-        return res.status(500).json({ success: false, message: 'Failed to save token on server.' });
+        return res.status(500).json({ success: false, message: 'Failed to save token on server.', details: error.message });
     }
 };
-    
+            
