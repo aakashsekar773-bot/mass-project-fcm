@@ -6,7 +6,7 @@ const admin = require('firebase-admin');
 // 1. Firebase Admin SDK-ஐத் தொடங்குதல் (Initialization)
 if (!admin.apps.length) {
     try {
-        // மிகவும் நம்பகமான Private Key வாசிப்பு முறை: '\\n' ஐ '\n' ஆக மாற்றுதல்
+        // 🔥 உறுதியான திருத்தம்: Environment Variable-இல் உள்ள '\\n' ஐ '\n' ஆக மாற்றுதல்
         const privateKey = process.env.FIREBASE_PRIVATE_KEY 
             ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') 
             : undefined;
@@ -32,11 +32,13 @@ if (!admin.apps.length) {
         });
         console.log("🟢 Notification Function: Admin SDK initialized."); 
     } catch (error) {
+        // Initialization தோல்வியடைந்தால், பிழையின் முழு விவரத்தை Log செய்யவும்
         console.error("🔴 Final Error: Firebase Admin Initialization Error:", error.message);
         throw error;
     }
 }
 
+// Init வெற்றிகரமாக நடந்தால் மட்டுமே db ஆப்ஜெக்ட் உருவாக்கப்படும்
 const db = admin.apps.length ? admin.firestore() : null;
 
 module.exports = async (req, res) => {
@@ -63,8 +65,6 @@ module.exports = async (req, res) => {
             const data = doc.data();
             if (data && data.token) {
                 tokens.push(data.token);
-                // டோக்கன் படித்ததை Log செய்யவும்
-                console.log(`Token successfully retrieved for Doc ID: ${doc.id}`); 
             }
         });
         console.log(`Total tokens found: ${tokens.length}`); 
@@ -88,7 +88,7 @@ module.exports = async (req, res) => {
         },
         data: { // ஆப்ஸ் Foreground-இல் இருக்கும்போது காட்ட Data field தேவை
             key_message: message || 'புதிய செய்தியைப் பார்க்கவும்.',
-            click_action: 'FLUTTER_NOTIFICATION_CLICK' 
+            click_action: 'FLUTTER_NOTIFICATION_CLICK' // உங்கள் ஆப்ஸுக்கு ஏற்றவாறு மாற்றவும்
         }
     };
 
@@ -102,7 +102,7 @@ module.exports = async (req, res) => {
         response.responses.forEach((result, index) => {
             if (!result.success && result.error) {
                 const tokenFailed = tokens[index];
-                // பிழை விவரங்களைச் சரியாக Log செய்யவும்
+                // 🔴 FCM FAILURE: பிழையின் முழு விவரத்தை இங்கே பார்க்கலாம்
                 console.error(`🔴 FCM FAILURE for Token ${tokenFailed.substring(0, 10)}...: Message: ${result.error.message}, Code: ${result.error.code}`);
             }
         });
@@ -114,4 +114,3 @@ module.exports = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Failed to send notifications due to server error.', details: error.message });
     }
 };
-                
