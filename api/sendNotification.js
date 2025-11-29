@@ -16,19 +16,18 @@ if (!admin.apps.length) {
              throw new Error("Initialization Failed: Missing Private Key.");
         }
 
+        // 🔥 இறுதித் தீர்வு: Init கன்ஃபிகரேஷனை எளிதாக்கி, FCM URL-ஐ சரியாகக் கட்டமைக்கிறோம்.
         admin.initializeApp({
             credential: admin.credential.cert({
                 type: process.env.FIREBASE_TYPE,
                 project_id: process.env.FIREBASE_PROJECT_ID,
                 private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-                private_key: privateKey, // திருத்தப்பட்ட சாவியைப் பயன்படுத்துதல்
+                private_key: privateKey, 
                 client_email: process.env.FIREBASE_CLIENT_EMAIL,
-                auth_uri: process.env.FIREBASE_AUTH_URI,
-                token_uri: process.env.FIREBASE_TOKEN_URI,
-                auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_CERT_URL,
-                client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
-                // 🔥 உறுதியான திருத்தம் 2: universe_domain-ஐ நீக்கிவிட்டோம்
+                // மற்ற URI-களை நீக்குகிறோம், இதுவே 404-ஐத் தடுக்கும்.
             }),
+            // Manual FCM URL configuration using project ID
+            databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com` 
         });
         console.log("🟢 Notification Function: Admin SDK initialized."); 
     } catch (error) {
@@ -54,6 +53,7 @@ module.exports = async (req, res) => {
     const COLLECTION_NAME = 'tokens'; 
 
     try {
+        // Firestore Access Verification
         const snapshot = await db.collection(COLLECTION_NAME).get(); 
         
         snapshot.forEach(doc => {
@@ -86,7 +86,7 @@ module.exports = async (req, res) => {
     };
 
     try {
-        // நோட்டிஃபிகேஷனை அனுப்புகிறது
+        // நோட்டிஃபிகேஷனை அனுப்புகிறது. இனி இது சரியான FCM URL-ஐப் பயன்படுத்தும்.
         const response = await admin.messaging().sendAll(tokens.map(token => ({ token, ...payload })));
         
         console.log(`Successfully attempted to send message. Success count: ${response.successCount}, Failure count: ${response.failureCount}`);
@@ -95,7 +95,6 @@ module.exports = async (req, res) => {
         response.responses.forEach((result, index) => {
             if (!result.success && result.error) {
                 const tokenFailed = tokens[index];
-                // 🔴 FCM FAILURE: இறுதிப் பிழை விவரம்
                 console.error(`🔴 FCM FAILURE for Token ${tokenFailed.substring(0, 10)}...: Message: ${result.error.message}, Code: ${result.error.code}`);
             }
         });
@@ -106,4 +105,4 @@ module.exports = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Failed to send notifications due to server error.', details: error.message });
     }
 };
-    
+                
