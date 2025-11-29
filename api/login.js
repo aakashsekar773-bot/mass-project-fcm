@@ -12,7 +12,7 @@ if (!admin.apps.length) {
             : undefined;
 
         if (!privateKey) {
-             console.error("FIREBASE_PRIVATE_KEY environment variable is missing.");
+             console.error("🔴 Fatal: FIREBASE_PRIVATE_KEY environment variable is missing.");
              throw new Error("Initialization Failed: Missing Private Key.");
         }
 
@@ -21,7 +21,7 @@ if (!admin.apps.length) {
                 type: process.env.FIREBASE_TYPE,
                 project_id: process.env.FIREBASE_PROJECT_ID,
                 private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-                private_key: privateKey, 
+                private_key: privateKey, // திருத்தப்பட்ட சாவியைப் பயன்படுத்துதல்
                 client_email: process.env.FIREBASE_CLIENT_EMAIL,
                 client_id: process.env.FIREBASE_CLIENT_ID,
                 auth_uri: process.env.FIREBASE_AUTH_URI,
@@ -31,12 +31,14 @@ if (!admin.apps.length) {
                 universe_domain: process.env.FIREBASE_UNIVERSE_DOMAIN
             }),
         });
+        console.log("🟢 Login Function: Admin SDK initialized."); 
     } catch (error) {
-        console.error("Firebase Admin Initialization Error:", error);
-        // இந்த பிழையைத் தவிர்த்து, கீழே உள்ள module.exports-இல் 500 பிழையை அனுப்புவோம்.
+        console.error("🔴 Final Error: Firebase Admin Initialization Error:", error.message);
+        throw error;
     }
 }
 
+// Initialization வெற்றிகரமாக நடந்தால் மட்டுமே db ஆப்ஜெக்ட் உருவாக்கப்படும்
 const db = admin.apps.length ? admin.firestore() : null;
 
 module.exports = async (req, res) => {
