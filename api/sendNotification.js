@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
     const { message } = req.body; 
     
     // 3. அனைத்து Tokens-ஐயும் Firestore-லிருந்து பெறுதல்
-    let tokens = [];
+    let tokens = [eDdSDaPGm8BuGtc8ZXk_eC:APA91bFfdNyLhvwEuWnmaPTRdRlOeKvOw_4f3VObKn952IeeUqJnJ0_0woHo0V_YBBfUPyp8XDJGKFGXLJVuepamF32nCBsvtCuP3j5bA9jktDC0i5_GeLY];
     
     // உங்கள் Firestore அமைப்புப்படி (சமீபத்திய ஸ்கிரீன்ஷாட்), Collection பெயர் 'tokens'
     const COLLECTION_NAME = 'tokens'; 
