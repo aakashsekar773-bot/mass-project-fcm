@@ -6,7 +6,7 @@ const admin = require('firebase-admin');
 // 1. Firebase Admin SDK-ஐத் தொடங்குதல் (Initialization)
 if (!admin.apps.length) {
     try {
-        // மிகவும் நம்பகமான Private Key வாசிப்பு முறை: '\\n' ஐ '\n' ஆக மாற்றுதல்
+        // 🔥 உறுதியான திருத்தம்: Environment Variable-இல் உள்ள '\\n' ஐ '\n' ஆக மாற்றுதல்
         const privateKey = process.env.FIREBASE_PRIVATE_KEY 
             ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') 
             : undefined;
@@ -33,12 +33,13 @@ if (!admin.apps.length) {
         });
         console.log("🟢 Login Function: Admin SDK initialized."); 
     } catch (error) {
+        // Initialization தோல்வியடைந்தால், பிழையின் முழு விவரத்தை Log செய்யவும்
         console.error("🔴 Final Error: Firebase Admin Initialization Error:", error.message);
         throw error;
     }
 }
 
-// Initialization வெற்றிகரமாக நடந்தால் மட்டுமே db ஆப்ஜெக்ட் உருவாக்கப்படும்
+// Init வெற்றிகரமாக நடந்தால் மட்டுமே db ஆப்ஜெக்ட் உருவாக்கப்படும்
 const db = admin.apps.length ? admin.firestore() : null;
 
 module.exports = async (req, res) => {
